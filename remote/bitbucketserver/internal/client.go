@@ -50,12 +50,13 @@ type Client struct {
 }
 
 func NewClientWithToken(url string, consumer *oauth.Consumer, AccessToken string) *Client {
-	var token oauth.AccessToken
+	/*var token oauth.AccessToken
 	token.Token = AccessToken
 	client, err := consumer.MakeHttpClient(&token)
 	if err != nil {
 		log.Error(err)
-	}
+	}*/
+	client := &http.Client{}
 	return &Client{client, url, AccessToken}
 }
 
@@ -92,9 +93,12 @@ func (c *Client) FindCurrentUser() (*User, error) {
 
 }
 
-func (c *Client) FindRepo(owner string, name string) (*Repo, error) {
+func (c *Client) FindRepo(owner string, name string, login string, password string) (*Repo, error) {
 	urlString := fmt.Sprintf(pathRepo, c.base, owner, name)
-	response, err := c.client.Get(urlString)
+	req, err := http.NewRequest("GET", urlString, nil)
+	req.SetBasicAuth(login, password)
+	response, err := c.client.Do(req)
+	//response, err := c.client.Get(urlString)
 	if err != nil {
 		log.Error(err)
 	}
@@ -108,19 +112,23 @@ func (c *Client) FindRepo(owner string, name string) (*Repo, error) {
 	return &repo, nil
 }
 
-func (c *Client) FindRepos() ([]*Repo, error) {
-	return c.paginatedRepos(0)
+func (c *Client) FindRepos(login string, password string) ([]*Repo, error) {
+	return c.paginatedRepos(0, login, password)
 }
 
-func (c *Client) FindRepoPerms(owner string, repo string) (*model.Perm, error) {
+func (c *Client) FindRepoPerms(owner string, repo string, login string, password string) (*model.Perm, error) {
 	perms := new(model.Perm)
 	// If you don't have access return none right away
-	_, err := c.FindRepo(owner, repo)
+	_, err := c.FindRepo(owner, repo, login, password)
 	if err != nil {
 		return perms, err
 	}
 	// Must have admin to be able to list hooks. If have access the enable perms
-	_, err = c.client.Get(fmt.Sprintf(pathHook, c.base, owner, repo, hookName))
+	urlString := fmt.Sprintf(pathHook, c.base, owner, repo, hookName)
+	req, err := http.NewRequest("GET", urlString, nil)
+	req.SetBasicAuth(login, password)
+	_, err = c.client.Do(req)
+	//_, err = c.client.Get(fmt.Sprintf(pathHook, c.base, owner, repo, hookName))
 	if err == nil {
 		perms.Push = true
 		perms.Admin = true
@@ -129,8 +137,12 @@ func (c *Client) FindRepoPerms(owner string, repo string) (*model.Perm, error) {
 	return perms, nil
 }
 
-func (c *Client) FindFileForRepo(owner string, repo string, fileName string, ref string) ([]byte, error) {
-	response, err := c.client.Get(fmt.Sprintf(pathSource, c.base, owner, repo, fileName, ref))
+func (c *Client) FindFileForRepo(owner string, repo string, fileName string, ref string, login string, password string) ([]byte, error) {
+	//response, err := c.client.Get(fmt.Sprintf(pathSource, c.base, owner, repo, fileName, ref))
+	urlString := fmt.Sprintf(pathSource, c.base, owner, repo, fileName, ref)
+	req, err := http.NewRequest("GET", urlString, nil)
+	req.SetBasicAuth(login, password)
+	response, err := c.client.Do(req)
 	if err != nil {
 		log.Error(err)
 	}
@@ -145,14 +157,14 @@ func (c *Client) FindFileForRepo(owner string, repo string, fileName string, ref
 	return responseBytes, nil
 }
 
-func (c *Client) CreateHook(owner string, name string, callBackLink string) error {
-	hookDetails, err := c.GetHookDetails(owner, name)
+func (c *Client) CreateHook(owner string, name string, callBackLink string, login string, password string) error {
+	hookDetails, err := c.GetHookDetails(owner, name, login, password)
 	if err != nil {
 		return err
 	}
 	var hooks []string
 	if hookDetails.Enabled {
-		hookSettings, err := c.GetHooks(owner, name)
+		hookSettings, err := c.GetHooks(owner, name, login, password)
 		if err != nil {
 			return err
 		}
@@ -165,17 +177,17 @@ func (c *Client) CreateHook(owner string, name string, callBackLink string) erro
 
 	putHookSettings := arrayToHookSettings(hooks)
 	hookBytes, err := json.Marshal(putHookSettings)
-	return c.doPut(fmt.Sprintf(pathHookEnabled, c.base, owner, name, hookName), hookBytes)
+	return c.doPut(fmt.Sprintf(pathHookEnabled, c.base, owner, name, hookName), hookBytes, login, password)
 }
 
-func (c *Client) CreateStatus(revision string, status *BuildStatus) error {
+func (c *Client) CreateStatus(revision string, status *BuildStatus, login string, password string) error {
 	uri := fmt.Sprintf(pathStatus, c.base, revision)
-	return c.doPost(uri, status)
+	return c.doPost(uri, status, login, password)
 }
 
-func (c *Client) DeleteHook(owner string, name string, link string) error {
+func (c *Client) DeleteHook(owner string, name string, link string, login string, password string) error {
 
-	hookSettings, err := c.GetHooks(owner, name)
+	hookSettings, err := c.GetHooks(owner, name, login, password)
 	if err != nil {
 		return err
 	}
@@ -185,12 +197,15 @@ func (c *Client) DeleteHook(owner string, name string, link string) error {
 	})
 	putHookSettings := arrayToHookSettings(putHooks)
 	hookBytes, err := json.Marshal(putHookSettings)
-	return c.doPut(fmt.Sprintf(pathHookEnabled, c.base, owner, name, hookName), hookBytes)
+	return c.doPut(fmt.Sprintf(pathHookEnabled, c.base, owner, name, hookName), hookBytes, login, password)
 }
 
-func (c *Client) GetHookDetails(owner string, name string) (*HookPluginDetails, error) {
+func (c *Client) GetHookDetails(owner string, name string, login string, password string) (*HookPluginDetails, error) {
 	urlString := fmt.Sprintf(pathHookDetails, c.base, owner, name, hookName)
-	response, err := c.client.Get(urlString)
+	req, err := http.NewRequest("GET", urlString, nil)
+	req.SetBasicAuth(login, password)
+	response, err := c.client.Do(req)
+	//response, err := c.client.Get(urlString)
 	if err != nil {
 		return nil, err
 	}
@@ -200,9 +215,12 @@ func (c *Client) GetHookDetails(owner string, name string) (*HookPluginDetails, 
 	return &hookDetails, err
 }
 
-func (c *Client) GetHooks(owner string, name string) (*HookSettings, error) {
+func (c *Client) GetHooks(owner string, name string, login string, password string) (*HookSettings, error) {
 	urlString := fmt.Sprintf(pathHookSettings, c.base, owner, name, hookName)
-	response, err := c.client.Get(urlString)
+	req, err := http.NewRequest("GET", urlString, nil)
+	req.SetBasicAuth(login, password)
+	response, err := c.client.Do(req)
+	//response, err := c.client.Get(urlString)
 	if err != nil {
 		return nil, err
 	}
@@ -215,9 +233,10 @@ func (c *Client) GetHooks(owner string, name string) (*HookSettings, error) {
 //TODO: make these as as general do with the action
 
 //Helper function to help create the hook
-func (c *Client) doPut(url string, body []byte) error {
+func (c *Client) doPut(url string, body []byte, login string, password string) error {
 	request, err := http.NewRequest("PUT", url, bytes.NewBuffer(body))
 	request.Header.Add("Content-Type", "application/json")
+	request.SetBasicAuth(login, password)
 	response, err := c.client.Do(request)
 	if err != nil {
 		return err
@@ -227,7 +246,7 @@ func (c *Client) doPut(url string, body []byte) error {
 }
 
 //Helper function to help create the hook
-func (c *Client) doPost(url string, status *BuildStatus) error {
+func (c *Client) doPost(url string, status *BuildStatus, login string, password string) error {
 	// write it to the body of the request.
 	var buf io.ReadWriter
 	if status != nil {
@@ -239,6 +258,7 @@ func (c *Client) doPost(url string, status *BuildStatus) error {
 	}
 	request, err := http.NewRequest("POST", url, buf)
 	request.Header.Add("Content-Type", "application/json")
+	request.SetBasicAuth(login, password)
 	response, err := c.client.Do(request)
 	if err != nil {
 		return err
@@ -259,10 +279,13 @@ func (c *Client) doDelete(url string) error {
 }
 
 //Helper function to get repos paginated
-func (c *Client) paginatedRepos(start int) ([]*Repo, error) {
+func (c *Client) paginatedRepos(start int, login string, password string) ([]*Repo, error) {
 	limit := 1000
 	requestUrl := fmt.Sprintf(pathRepos, c.base, strconv.Itoa(start), strconv.Itoa(limit))
-	response, err := c.client.Get(requestUrl)
+	req, err := http.NewRequest("GET", requestUrl, nil)
+	req.SetBasicAuth(login, password)
+	response, err := c.client.Do(req)
+	//response, err := c.client.Get(requestUrl)
 	if err != nil {
 		return nil, err
 	}
@@ -273,7 +296,7 @@ func (c *Client) paginatedRepos(start int) ([]*Repo, error) {
 		return nil, err
 	}
 	if !repoResponse.IsLastPage {
-		reposList, err := c.paginatedRepos(start + limit)
+		reposList, err := c.paginatedRepos(start + limit, login, password)
 		if err != nil {
 			return nil, err
 		}

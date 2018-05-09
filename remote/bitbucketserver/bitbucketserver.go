@@ -20,10 +20,10 @@ package bitbucketserver
 import (
 	"crypto/rsa"
 	"crypto/tls"
-	"crypto/x509"
-	"encoding/pem"
+//	"crypto/x509"
+//	"encoding/pem"
 	"fmt"
-	"io/ioutil"
+//	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strings"
@@ -74,7 +74,8 @@ func New(opts Opts) (remote.Remote, error) {
 		return nil, fmt.Errorf("Must have a git machine account username")
 	case opts.Password == "":
 		return nil, fmt.Errorf("Must have a git machine account password")
-	case opts.ConsumerKey == "":
+	}
+	/*case opts.ConsumerKey == "":
 		return nil, fmt.Errorf("Must have a oauth1 consumer key")
 	}
 
@@ -99,12 +100,12 @@ func New(opts Opts) (remote.Remote, error) {
 		return nil, err
 	}
 
-	config.Consumer = CreateConsumer(opts.URL, opts.ConsumerKey, PrivateKey)
+	config.Consumer = CreateConsumer(opts.URL, opts.ConsumerKey, PrivateKey)*/
 	return config, nil
 }
 
 func (c *Config) Login(res http.ResponseWriter, req *http.Request) (*model.User, error) {
-	requestToken, url, err := c.Consumer.GetRequestTokenAndUrl("oob")
+	/*requestToken, url, err := c.Consumer.GetRequestTokenAndUrl("oob")
 	if err != nil {
 		return nil, err
 	}
@@ -112,21 +113,45 @@ func (c *Config) Login(res http.ResponseWriter, req *http.Request) (*model.User,
 	if len(code) == 0 {
 		http.Redirect(res, req, url, http.StatusSeeOther)
 		return nil, nil
+	}*/
+	
+	var (
+		username = req.FormValue("username")
+		password = req.FormValue("password")
+	)
+
+	// if the username or password is empty we re-direct to the login screen.
+	if len(username) == 0 || len(password) == 0 {
+		http.Redirect(res, req, "/login/form", http.StatusSeeOther)
+		return nil, nil
 	}
-	requestToken.Token = req.FormValue("oauth_token")
+
+	/*requestToken.Token = req.FormValue("oauth_token")
 	accessToken, err := c.Consumer.AuthorizeToken(requestToken, code)
 	if err != nil {
 		return nil, err
+	}*/
+	
+	// validate access and then assign cstgbuilds.gen token
+	terr := ValidateUser(c.URL, username, password)
+	if terr != nil {
+		return nil, terr
 	}
 
-	client := internal.NewClientWithToken(c.URL, c.Consumer, accessToken.Token)
+	/*client := internal.NewClientWithToken(c.URL, c.Consumer, accessToken.Token)
 
 	user, err := client.FindCurrentUser()
 	if err != nil {
 		return nil, err
 	}
 
-	return convertUser(user, accessToken), nil
+	return convertUser(username, accessToken), nil*/
+	return &model.User{
+//		Token:    accessToken,
+		Login:    username,
+		Email:    username+"@cisco.com",
+		Token:    password,
+	}, nil
 
 }
 
@@ -147,7 +172,7 @@ func (*Config) TeamPerm(u *model.User, org string) (*model.Perm, error) {
 }
 
 func (c *Config) Repo(u *model.User, owner, name string) (*model.Repo, error) {
-	repo, err := internal.NewClientWithToken(c.URL, c.Consumer, u.Token).FindRepo(owner, name)
+	repo, err := internal.NewClientWithToken(c.URL, c.Consumer, u.Token).FindRepo(owner, name, u.Login, u.Token)
 	if err != nil {
 		return nil, err
 	}
@@ -155,7 +180,7 @@ func (c *Config) Repo(u *model.User, owner, name string) (*model.Repo, error) {
 }
 
 func (c *Config) Repos(u *model.User) ([]*model.Repo, error) {
-	repos, err := internal.NewClientWithToken(c.URL, c.Consumer, u.Token).FindRepos()
+	repos, err := internal.NewClientWithToken(c.URL, c.Consumer, u.Token).FindRepos(u.Login, u.Token)
 	if err != nil {
 		return nil, err
 	}
@@ -170,19 +195,19 @@ func (c *Config) Repos(u *model.User) ([]*model.Repo, error) {
 func (c *Config) Perm(u *model.User, owner, repo string) (*model.Perm, error) {
 	client := internal.NewClientWithToken(c.URL, c.Consumer, u.Token)
 
-	return client.FindRepoPerms(owner, repo)
+	return client.FindRepoPerms(owner, repo, u.Login, u.Token)
 }
 
 func (c *Config) File(u *model.User, r *model.Repo, b *model.Build, f string) ([]byte, error) {
 	client := internal.NewClientWithToken(c.URL, c.Consumer, u.Token)
 
-	return client.FindFileForRepo(r.Owner, r.Name, f, b.Ref)
+	return client.FindFileForRepo(r.Owner, r.Name, f, b.Ref, u.Login, u.Token)
 }
 
 func (c *Config) FileRef(u *model.User, r *model.Repo, ref, f string) ([]byte, error) {
 	client := internal.NewClientWithToken(c.URL, c.Consumer, u.Token)
 
-	return client.FindFileForRepo(r.Owner, r.Name, f, ref)
+	return client.FindFileForRepo(r.Owner, r.Name, f, ref, u.Login, u.Token)
 }
 
 // Status is not supported by the bitbucketserver driver.
@@ -197,7 +222,7 @@ func (c *Config) Status(u *model.User, r *model.Repo, b *model.Build, link strin
 
 	client := internal.NewClientWithToken(c.URL, c.Consumer, u.Token)
 
-	return client.CreateStatus(b.Commit, &status)
+	return client.CreateStatus(b.Commit, &status, u.Login, u.Token)
 }
 
 func (c *Config) Netrc(user *model.User, r *model.Repo) (*model.Netrc, error) {
@@ -222,12 +247,12 @@ func (c *Config) Netrc(user *model.User, r *model.Repo) (*model.Netrc, error) {
 func (c *Config) Activate(u *model.User, r *model.Repo, link string) error {
 	client := internal.NewClientWithToken(c.URL, c.Consumer, u.Token)
 
-	return client.CreateHook(r.Owner, r.Name, link)
+	return client.CreateHook(r.Owner, r.Name, link, u.Login, u.Token)
 }
 
 func (c *Config) Deactivate(u *model.User, r *model.Repo, link string) error {
 	client := internal.NewClientWithToken(c.URL, c.Consumer, u.Token)
-	return client.DeleteHook(r.Owner, r.Name, link)
+	return client.DeleteHook(r.Owner, r.Name, link, u.Login, u.Token)
 }
 
 func (c *Config) Hook(r *http.Request) (*model.Repo, *model.Build, error) {
@@ -251,4 +276,15 @@ func CreateConsumer(URL string, ConsumerKey string, PrivateKey *rsa.PrivateKey) 
 		},
 	}
 	return consumer
+}
+
+func ValidateUser(URL string, Username string, Password string) error {
+	client := &http.Client{}
+	req, err := http.NewRequest("GET", URL + "/rest/api/latest/users/" + Username, nil)
+	req.SetBasicAuth(Username, Password)
+	_, err = client.Do(req)
+	if err != nil{
+		return err
+	}
+	return nil
 }
