@@ -368,16 +368,29 @@ type RefChange struct {
 }
 
 type HookPluginDetails struct {
-	Details struct {
-		Key           string `json:"key"`
-		Name          string `json:"name"`
-		Type          string `json:"type"`
-		Description   string `json:"description"`
-		Version       string `json:"version"`
-		ConfigFormKey string `json:"configFormKey"`
-	} `json:"details"`
-	Enabled    bool `json:"enabled"`
-	Configured bool `json:"configured"`
+	Size        int  `json:"size"`
+	Limit       int  `json:"limit"`
+	IsLastPage  bool `json:"isLastPage"`
+	Values []struct {
+		ID            int      `json:"id"`
+		Name          string   `json:"name"`
+		CreatedDate   int      `json:"createdDate"`
+		UpdatedDate   int      `json:"updatedDate"`
+		Configuration struct {
+			Secret    	string   `json:"secret"`
+		} `json:"configuration"`
+		Url           string   `json:"url"`
+		Active   	  bool `json:"active"`
+	} `json:"values"`
+	Start      int  `json:"start"`
+}
+
+type NewWebHook struct {
+	Name		string   `json:"name"`
+	URL			string   `json:"url"`
+	Active		bool     `json:"active"`
+	Events 	    []string `json:"events"`
+	events 	    []string
 }
 
 type HookSettings struct {
