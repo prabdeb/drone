@@ -15,8 +15,6 @@
 package bitbucketserver
 
 import (
-	"crypto/md5"
-	"encoding/hex"
 	"fmt"
 	"net/url"
 	"strings"
@@ -176,6 +174,6 @@ func convertUser(from *internal.User, token *oauth.AccessToken, url string) *mod
 }
 
 func avatarLink(login string, url string) string {
-	avatarURL := fmt.Sprintf("%s/users/%s/avatar.png", url, login),
+	avatarURL := fmt.Sprintf("%s/users/%s/avatar.png", url, login)
 	return avatarURL
 }
