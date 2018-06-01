@@ -102,36 +102,63 @@ func convertRepo(from *internal.Repo) *model.Repo {
 
 // convertPushHook is a helper function used to convert a Bitbucket push
 // hook to the Drone build struct holding commit information.
-func convertPushHook(hook *internal.PostHook, baseURL string) *model.Build {
+func convertPushHook(hook *internal.PushHook, baseURL string) *model.Build {
 	branch := strings.TrimPrefix(
 		strings.TrimPrefix(
-			hook.RefChanges[0].RefID,
+			hook.Changes[0].RefID,
 			"refs/heads/",
 		),
 		"refs/tags/",
 	)
 
 	//Ensuring the author label is not longer then 40 for the label of the commit author (default size in the db)
-	authorLabel := hook.Changesets.Values[0].ToCommit.Author.Name
+	authorLabel := hook.Actor.Name
 	if len(authorLabel) > 40 {
 		authorLabel = authorLabel[0:37] + "..."
 	}
 
 	build := &model.Build{
-		Commit:    hook.RefChanges[0].ToHash, // TODO check for index value
+		Commit:    hook.Changes[0].ToHash, // TODO check for index value
 		Branch:    branch,
-		Message:   hook.Changesets.Values[0].ToCommit.Message, //TODO check for index Values
-		Avatar:    avatarLink(hook.Changesets.Values[0].ToCommit.Author.EmailAddress),
+		Message:   fmt.Sprintf("%s/%s - %s - pipeline", hook.Repository.Project.Key, hook.Repository.Slug, branch), //TODO fetch commit message fron BB
+		Avatar:    fmt.Sprintf("%s/users/%s/avatar.png", baseURL, hook.Actor.Name),
 		Author:    authorLabel,
-		Email:     hook.Changesets.Values[0].ToCommit.Author.EmailAddress,
+		Email:     hook.Actor.EmailAddress,
 		Timestamp: time.Now().UTC().Unix(),
-		Ref:       hook.RefChanges[0].RefID, // TODO check for index Values
-		Link:      fmt.Sprintf("%s/projects/%s/repos/%s/commits/%s", baseURL, hook.Repository.Project.Key, hook.Repository.Slug, hook.RefChanges[0].ToHash),
+		Ref:       hook.Changes[0].RefID, // TODO check for index Values
+		Link:      fmt.Sprintf("%s/projects/%s/repos/%s/commits/%s", baseURL, hook.Repository.Project.Key, hook.Repository.Slug, hook.Changes[0].ToHash),
 	}
-	if strings.HasPrefix(hook.RefChanges[0].RefID, "refs/tags/") {
+	if strings.HasPrefix(hook.Changes[0].RefID, "refs/tags/") {
 		build.Event = model.EventTag
 	} else {
 		build.Event = model.EventPush
+	}
+
+	return build
+}
+
+// convertPushHook is a helper function used to convert a Bitbucket push
+// hook to the Drone build struct holding commit information.
+func convertPullRequestHook(hook *internal.PullRequestHook, baseURL string) *model.Build {
+	//Ensuring the author label is not longer then 40 for the label of the commit author (default size in the db)
+	authorLabel := hook.Actor.Name
+	if len(authorLabel) > 40 {
+		authorLabel = authorLabel[0:37] + "..."
+	}
+
+	build := &model.Build{
+		Event:     model.EventPull,
+		Commit:    hook.PullRequest.FromRef.LatestCommit,
+		Branch:    hook.PullRequest.ToRef.ID,
+		Message:   hook.PullRequest.Title,
+		Title:     hook.PullRequest.Title,
+		Avatar:    fmt.Sprintf("%s/users/%s/avatar.png", baseURL, hook.Actor.Name),
+		Author:    authorLabel,
+		Email:     hook.Actor.EmailAddress,
+		Timestamp: time.Now().UTC().Unix(),
+		Ref:       fmt.Sprintf("refs/pull-requests/%d/merge", hook.PullRequest.ID),
+		Link:      fmt.Sprintf("%s/projects/%s/repos/%s/pull-requests/%d", baseURL, hook.PullRequest.ToRef.Repository.Project.Key, hook.PullRequest.ToRef.Repository.Slug, hook.PullRequest.ID),
+		Refspec:   "+refs/pull-requests/*:refs/remotes/origin/pr/*",
 	}
 
 	return build
