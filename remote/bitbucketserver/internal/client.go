@@ -37,8 +37,8 @@ const (
 	pathHook         = "%s/rest/api/1.0/projects/%s/repos/%s/settings/hooks/%s"
 	pathSource       = "%s/projects/%s/repos/%s/browse/%s?at=%s&raw"
 	hookName         = "com.atlassian.stash.plugin.stash-web-post-receive-hooks-plugin:postReceiveHook"
-	pathHookDetails  = "%s/rest/api/1.0/projects/%s/repos/%s/settings/hooks/%s"
-	pathHookEnabled  = "%s/rest/api/1.0/projects/%s/repos/%s/settings/hooks/%s/enabled"
+	pathHookDetails  = "%s/rest/api/1.0/projects/%s/repos/%s/webhooks"
+	pathHookEnabled  = "%s/rest/api/1.0/projects/%s/repos/%s/webhooks/%s"
 	pathHookSettings = "%s/rest/api/1.0/projects/%s/repos/%s/settings/hooks/%s/settings"
 	pathStatus       = "%s/rest/build-status/1.0/commits/%s"
 )
@@ -158,26 +158,17 @@ func (c *Client) FindFileForRepo(owner string, repo string, fileName string, ref
 }
 
 func (c *Client) CreateHook(owner string, name string, callBackLink string, login string, password string) error {
-	hookDetails, err := c.GetHookDetails(owner, name, login, password)
+	putHookSettings := &NewWebHook{
+		Name: "drone",
+		URL: callBackLink,
+		Active: true,
+		Events: []string{"pr:opened", "pr:comment:added", "repo:refs_changed"},
+	}
+	hookBytes, err := json.Marshal(putHookSettings)
 	if err != nil {
 		return err
 	}
-	var hooks []string
-	if hookDetails.Enabled {
-		hookSettings, err := c.GetHooks(owner, name, login, password)
-		if err != nil {
-			return err
-		}
-		hooks = hookSettingsToArray(hookSettings)
-
-	}
-	if !stringInSlice(callBackLink, hooks) {
-		hooks = append(hooks, callBackLink)
-	}
-
-	putHookSettings := arrayToHookSettings(hooks)
-	hookBytes, err := json.Marshal(putHookSettings)
-	return c.doPut(fmt.Sprintf(pathHookEnabled, c.base, owner, name, hookName), hookBytes, login, password)
+	return c.doCreate(fmt.Sprintf(pathHookDetails, c.base, owner, name), hookBytes, login, password)
 }
 
 func (c *Client) CreateStatus(revision string, status *BuildStatus, login string, password string) error {
@@ -186,22 +177,24 @@ func (c *Client) CreateStatus(revision string, status *BuildStatus, login string
 }
 
 func (c *Client) DeleteHook(owner string, name string, link string, login string, password string) error {
-
-	hookSettings, err := c.GetHooks(owner, name, login, password)
+	hookDetails, err := c.GetHookDetails(owner, name, login, password)
 	if err != nil {
 		return err
 	}
-	putHooks := filter(hookSettingsToArray(hookSettings), func(item string) bool {
-
-		return !strings.Contains(item, link)
-	})
-	putHookSettings := arrayToHookSettings(putHooks)
-	hookBytes, err := json.Marshal(putHookSettings)
-	return c.doPut(fmt.Sprintf(pathHookEnabled, c.base, owner, name, hookName), hookBytes, login, password)
+	hookId := ""
+	for _, hook := range hookDetails.Values {
+		if (hook.Name == "drone" && strings.Contains(hook.Url, link)) {
+			hookId = strconv.Itoa(hook.ID)
+		}
+	}
+	if hookId == "" {
+		return nil
+	}
+	return c.doDelete(fmt.Sprintf(pathHookEnabled, c.base, owner, name, hookId), login, password)
 }
 
 func (c *Client) GetHookDetails(owner string, name string, login string, password string) (*HookPluginDetails, error) {
-	urlString := fmt.Sprintf(pathHookDetails, c.base, owner, name, hookName)
+	urlString := fmt.Sprintf(pathHookDetails, c.base, owner, name)
 	req, err := http.NewRequest("GET", urlString, nil)
 	req.SetBasicAuth(login, password)
 	response, err := c.client.Do(req)
@@ -233,8 +226,8 @@ func (c *Client) GetHooks(owner string, name string, login string, password stri
 //TODO: make these as as general do with the action
 
 //Helper function to help create the hook
-func (c *Client) doPut(url string, body []byte, login string, password string) error {
-	request, err := http.NewRequest("PUT", url, bytes.NewBuffer(body))
+func (c *Client) doCreate(url string, body []byte, login string, password string) error {
+	request, err := http.NewRequest("POST", url, bytes.NewBuffer(body))
 	request.Header.Add("Content-Type", "application/json")
 	request.SetBasicAuth(login, password)
 	response, err := c.client.Do(request)
@@ -268,8 +261,10 @@ func (c *Client) doPost(url string, status *BuildStatus, login string, password 
 }
 
 //Helper function to do delete on the hook
-func (c *Client) doDelete(url string) error {
+func (c *Client) doDelete(url string, login string, password string) error {
 	request, err := http.NewRequest("DELETE", url, nil)
+	request.Header.Add("Content-Type", "application/json")
+	request.SetBasicAuth(login, password)
 	response, err := c.client.Do(request)
 	if err != nil {
 		return err

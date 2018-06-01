@@ -177,6 +177,189 @@ type PostHook struct {
 	} `json:"repository"`
 }
 
+type PullRequestHook struct {
+	EventKey	string `json:"eventKey"`
+	Date		string `json:"date"`
+	Actor		struct {
+		Name			string 	`json:"name"`
+		EmailAddress	string 	`json:"emailAddress"`
+		ID       		int    	`json:"id"`
+		DisplayName		string 	`json:"displayName"`
+		Active			bool 	`json:"active"`
+		Slug			string 	`json:"slug"`
+		Type			string 	`json:"type"`
+	} `json:"actor"`
+	PullRequest struct {
+		ID       		int    	`json:"id"`
+		Version       	int    	`json:"version"`
+		Title     		string 	`json:"title"`
+		State         	string 	`json:"state"`
+		Open			bool 	`json:"open"`
+		Closed 			bool 	`json:"closed"`
+		CreatedDate		int 	`json:"createdDate"`
+		UpdatedDate    	int 	`json:"updatedDate"`
+		FromRef  struct {
+			ID         		string `json:"id"`
+			DisplayId      	string `json:"displayId"`
+			LatestCommit   	string `json:"latestCommit"`
+			Repository struct {
+				Slug       		string `json:"slug"`
+				ID         		int    `json:"id"`
+				Name       		string `json:"name"`
+				ScmId      		string `json:"scmId"`
+				State      		string `json:"state"`
+				StatusMessage  	string `json:"statusMessage"`
+				Forkable 		bool   `json:"forkable"`
+				Origin struct {
+					Slug       		string `json:"slug"`
+					ID         		int    `json:"id"`
+					Name       		string `json:"name"`
+					ScmId      		string `json:"scmId"`
+					State      		string `json:"state"`
+					StatusMessage  	string `json:"statusMessage"`
+					Forkable 		bool   `json:"forkable"`
+					Project struct {
+						Key         string `json:"key"`
+						ID         	int    `json:"id"`
+						Name        string `json:"name"`
+						Description string `json:"description"`
+						Public 		bool   `json:"public"`
+						Type        string `json:"type"`
+					} `json:"project"`
+					Public 		bool `json:"public"`
+				} `json:"origin"`
+				Project struct {
+					Key         string `json:"key"`
+					ID         	int    `json:"id"`
+					Name        string `json:"name"`
+					Type        string `json:"type"`
+					Owner struct {
+						Name			string 	`json:"name"`
+						EmailAddress	string 	`json:"emailAddress"`
+						ID       		int    	`json:"id"`
+						DisplayName		string 	`json:"displayName"`
+						Active			bool 	`json:"active"`
+						Slug			string 	`json:"slug"`
+						Type			string 	`json:"type"`
+					} `json:"owner"`
+				} `json:"project"`
+				Public 	bool `json:"public"`
+			} `json:"repository"`
+		} `json:"fromRef"`
+		ToRef  struct {
+			ID         		string `json:"id"`
+			DisplayId      	string `json:"displayId"`
+			LatestCommit   	string `json:"latestCommit"`
+			Repository struct {
+				Slug       		string `json:"slug"`
+				ID         		int    `json:"id"`
+				Name       		string `json:"name"`
+				ScmId      		string `json:"scmId"`
+				State      		string `json:"state"`
+				StatusMessage  	string `json:"statusMessage"`
+				Forkable 		bool   `json:"forkable"`
+				Project struct {
+					Key         string `json:"key"`
+					ID         	int    `json:"id"`
+					Name        string `json:"name"`
+					Public 		bool   `json:"public"`
+					Type        string `json:"type"`
+				} `json:"project"`
+				Public 	bool `json:"public"`
+			} `json:"repository"`
+		} `json:"toRef"`
+		Locked 	bool `json:"locked"`
+		Author struct {
+			User struct {
+				Name			string 	`json:"name"`
+				EmailAddress	string 	`json:"emailAddress"`
+				ID       		int    	`json:"id"`
+				DisplayName		string 	`json:"displayName"`
+				Active			bool 	`json:"active"`
+				Slug			string 	`json:"slug"`
+				Type			string 	`json:"type"`
+			} `json:"user"`
+			Role			string 	`json:"role"`
+			Approved		bool 	`json:"approved"`
+			Status			string 	`json:"status"`
+		} `json:"author"`
+		Reviewers []struct {
+			User struct {
+				Name			string 	`json:"name"`
+				EmailAddress	string 	`json:"emailAddress"`
+				ID       		int    	`json:"id"`
+				DisplayName		string 	`json:"displayName"`
+				Active			bool 	`json:"active"`
+				Slug			string 	`json:"slug"`
+				Type			string 	`json:"type"`
+			} `json:"user"`
+			Role			string 	`json:"role"`
+			Approved		bool 	`json:"approved"`
+			Status			string 	`json:"status"`
+		} `json:"reviewers"`
+		Participants []struct {
+			User struct {
+				Name			string 	`json:"name"`
+				EmailAddress	string 	`json:"emailAddress"`
+				ID       		int    	`json:"id"`
+				DisplayName		string 	`json:"displayName"`
+				Active			bool 	`json:"active"`
+				Slug			string 	`json:"slug"`
+				Type			string 	`json:"type"`
+			} `json:"user"`
+			Role			string 	`json:"role"`
+			Approved		bool 	`json:"approved"`
+			Status			string 	`json:"status"`
+		} `json:"participants"`
+	} `json:"pullRequest"`
+	Comment struct {
+		Text	string 	`json:"text"`
+	} `json:"comment"`
+}
+
+type PushHook struct {
+	EventKey	string `json:"eventKey"`
+	Date		string `json:"date"`
+	Actor		struct {
+		Name			string 	`json:"name"`
+		EmailAddress	string 	`json:"emailAddress"`
+		ID       		int    	`json:"id"`
+		DisplayName		string 	`json:"displayName"`
+		Active			bool 	`json:"active"`
+		Slug			string 	`json:"slug"`
+		Type			string 	`json:"type"`
+	} `json:"actor"`
+	Repository struct {
+		Slug       		string `json:"slug"`
+		ID         		int    `json:"id"`
+		Name       		string `json:"name"`
+		ScmId      		string `json:"scmId"`
+		State      		string `json:"state"`
+		StatusMessage  	string `json:"statusMessage"`
+		Forkable 		bool   `json:"forkable"`
+		Project struct {
+			Key         string `json:"key"`
+			ID         	int    `json:"id"`
+			Name        string `json:"name"`
+			Description string `json:"description"`
+			Public 		bool   `json:"public"`
+			Type        string `json:"type"`
+		} `json:"project"`
+		Public 		bool `json:"public"`
+	} `json:"repository"`
+	Changes []struct {
+		Ref struct {
+			ID        string `json:"id"`
+			DisplayId string `json:"displayId"`
+			Type      string `json:"type"`
+		} `json:"ref"`
+		RefID string `json:"refId"`
+		FromHash string `json:"fromHash"`
+		ToHash string `json:"toHash"`
+		Type string `json:"type"`
+	} `json:"changes"`
+}
+
 type RefChange struct {
 	FromHash string `json:"fromHash"`
 	RefID    string `json:"refId"`
@@ -185,16 +368,29 @@ type RefChange struct {
 }
 
 type HookPluginDetails struct {
-	Details struct {
-		Key           string `json:"key"`
-		Name          string `json:"name"`
-		Type          string `json:"type"`
-		Description   string `json:"description"`
-		Version       string `json:"version"`
-		ConfigFormKey string `json:"configFormKey"`
-	} `json:"details"`
-	Enabled    bool `json:"enabled"`
-	Configured bool `json:"configured"`
+	Size        int  `json:"size"`
+	Limit       int  `json:"limit"`
+	IsLastPage  bool `json:"isLastPage"`
+	Values []struct {
+		ID            int      `json:"id"`
+		Name          string   `json:"name"`
+		CreatedDate   int      `json:"createdDate"`
+		UpdatedDate   int      `json:"updatedDate"`
+		Configuration struct {
+			Secret    	string   `json:"secret"`
+		} `json:"configuration"`
+		Url           string   `json:"url"`
+		Active   	  bool `json:"active"`
+	} `json:"values"`
+	Start      int  `json:"start"`
+}
+
+type NewWebHook struct {
+	Name		string   `json:"name"`
+	URL			string   `json:"url"`
+	Active		bool     `json:"active"`
+	Events 	    []string `json:"events"`
+	events 	    []string
 }
 
 type HookSettings struct {
