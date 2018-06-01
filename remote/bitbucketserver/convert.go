@@ -139,19 +139,16 @@ func convertPushHook(hook *internal.PostHook, baseURL string) *model.Build {
 
 // convertUser is a helper function used to convert a Bitbucket user account
 // structure to the Drone User structure.
-func convertUser(from *internal.User, token *oauth.AccessToken) *model.User {
+func convertUser(from *internal.User, token *oauth.AccessToken, url string) *model.User {
 	return &model.User{
 		Login:  from.Slug,
 		Token:  token.Token,
 		Email:  from.EmailAddress,
-		Avatar: avatarLink(from.EmailAddress),
+		Avatar: avatarLink(from.Slug, url),
 	}
 }
 
-func avatarLink(email string) string {
-	hasher := md5.New()
-	hasher.Write([]byte(strings.ToLower(email)))
-	emailHash := fmt.Sprintf("%v", hex.EncodeToString(hasher.Sum(nil)))
-	avatarURL := fmt.Sprintf("https://www.gravatar.com/avatar/%s.jpg", emailHash)
+func avatarLink(login string, url string) string {
+	avatarURL := fmt.Sprintf("%s/users/%s/avatar.png", url, login),
 	return avatarURL
 }
