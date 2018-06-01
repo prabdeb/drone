@@ -126,7 +126,7 @@ func (c *Config) Login(res http.ResponseWriter, req *http.Request) (*model.User,
 		return nil, err
 	}
 
-	return convertUser(user, accessToken), nil
+	return convertUser(user, accessToken, c.URL), nil
 
 }
 
