@@ -146,6 +146,10 @@ func convertPullRequestHook(hook *internal.PullRequestHook, baseURL string) *mod
 		authorLabel = authorLabel[0:37] + "..."
 	}
 
+	//refs/pull-requests/%d/merge is not synchronized with BB WebHook event trigger
+	//hence adding 5 seconds sleep before returning build
+	time.Sleep(5 * time.Second)
+
 	build := &model.Build{
 		Event:     model.EventPull,
 		Commit:    hook.PullRequest.FromRef.LatestCommit,
