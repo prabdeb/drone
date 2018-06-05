@@ -438,6 +438,11 @@ var flags = []cli.Flag{
 		Name:   "stash-git-password",
 		Usage:  "stash service account password",
 	},
+	cli.StringFlag{
+		EnvVar: "DRONE_STASH_PR_COMMANDS",
+		Name:   "stash-pr-commands",
+		Usage:  "stash pr commands to re-trigger build",
+	},
 	cli.BoolFlag{
 		EnvVar: "DRONE_STASH_SKIP_VERIFY",
 		Name:   "stash-skip-verify",
