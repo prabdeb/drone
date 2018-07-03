@@ -52,6 +52,10 @@ func parsePushHook(r *http.Request, baseURL string) (*model.Repo, *model.Build, 
 	if err := json.NewDecoder(r.Body).Decode(hook); err != nil {
 		return nil, nil, err
 	}
+	// Ignore DELETE tag/branch event
+	if (hook.Changes[0].Type == "DELETE") {
+		return nil, nil, nil
+	}
 	build := convertPushHook(hook, baseURL)
 	repo := &model.Repo{
 		Name:     hook.Repository.Slug,
