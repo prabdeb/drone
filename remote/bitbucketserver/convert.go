@@ -15,7 +15,10 @@
 package bitbucketserver
 
 import (
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"net/http"
 	"net/url"
 	"strings"
 	"time"
@@ -100,7 +103,7 @@ func convertRepo(from *internal.Repo) *model.Repo {
 
 // convertPushHook is a helper function used to convert a Bitbucket push
 // hook to the Drone build struct holding commit information.
-func convertPushHook(hook *internal.PushHook, baseURL string) *model.Build {
+func convertPushHook(hook *internal.PushHook, baseURL string, netrcUsername string, netrcPassword string) *model.Build {
 	branch := strings.TrimPrefix(
 		strings.TrimPrefix(
 			hook.Changes[0].RefID,
@@ -115,10 +118,16 @@ func convertPushHook(hook *internal.PushHook, baseURL string) *model.Build {
 		authorLabel = authorLabel[0:37] + "..."
 	}
 
+	//Get commit message using basic auth, this is a workarround till BB expose commit message in WebHook payload
+	commitMessage, _ := getCommitMessage(netrcUsername, netrcPassword, baseURL, hook.Repository.Project.Key, hook.Repository.Slug, hook.Changes[0].ToHash)
+	if commitMessage == "" {
+		commitMessage = fmt.Sprintf("%s/%s - %s - pipeline", hook.Repository.Project.Key, hook.Repository.Slug, branch)
+	}
+
 	build := &model.Build{
 		Commit:    hook.Changes[0].ToHash, // TODO check for index value
 		Branch:    branch,
-		Message:   fmt.Sprintf("%s/%s - %s - pipeline", hook.Repository.Project.Key, hook.Repository.Slug, branch), //TODO fetch commit message fron BB
+		Message:   commitMessage, //TODO fetch commit message fron BB
 		Avatar:    fmt.Sprintf("%s/users/%s/avatar.png", baseURL, hook.Actor.Name),
 		Author:    authorLabel,
 		Email:     hook.Actor.EmailAddress,
@@ -180,4 +189,30 @@ func convertUser(from *internal.User, token *oauth.AccessToken, url string) *mod
 func avatarLink(login string, url string) string {
 	avatarURL := fmt.Sprintf("%s/users/%s/avatar.png", url, login)
 	return avatarURL
+}
+
+//Helper function to get commit message using basic auth
+func getCommitMessage(username string, password string, base string, owner string, name string, commitID string) (string, error) {
+	commitPath := "%s/rest/api/latest/projects/%s/repos/%s/commits/%s"
+	client := &http.Client{}
+	req, err := http.NewRequest("GET", fmt.Sprintf(commitPath, base, owner, name, commitID), nil)
+	req.SetBasicAuth(username, password)
+	response, err := client.Do(req)
+	if err != nil {
+		return "", err
+	}
+	if response.StatusCode == 404 {
+		return "", nil
+	}
+	defer response.Body.Close()
+	responseBytes, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		return "", err
+	}
+	var commit *internal.Commit
+	err = json.Unmarshal(responseBytes, &commit)
+	if err != nil {
+		return "", err
+	}
+	return commit.Message, nil
 }

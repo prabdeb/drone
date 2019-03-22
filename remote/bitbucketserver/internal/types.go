@@ -393,6 +393,11 @@ type NewWebHook struct {
 	events 	    []string
 }
 
+type Commit struct {
+	ID      string `json:"id"`
+	Message string `json:"message"`
+}
+
 type HookSettings struct {
 	HookURL0  string `json:"hook-url-0,omitempty"`
 	HookURL1  string `json:"hook-url-1,omitempty"`

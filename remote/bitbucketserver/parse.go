@@ -17,46 +17,47 @@ package bitbucketserver
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/drone/drone/model"
-	"github.com/drone/drone/remote/bitbucketserver/internal"
 	"net/http"
 	"strings"
+
+	"github.com/drone/drone/model"
+	"github.com/drone/drone/remote/bitbucketserver/internal"
 )
 
 const (
-	hookEvent       		= "X-Event-Key"
-	hookPush        		= "repo:refs_changed"
-	hookPullRequestOpened 	= "pr:opened"
-	hookPullRequestUpdated 	= "pr:comment:added"
-	
+	hookEvent              = "X-Event-Key"
+	hookPush               = "repo:refs_changed"
+	hookPullRequestOpened  = "pr:opened"
+	hookPullRequestUpdated = "pr:comment:added"
+
 	refBranch = "branch"
 	refTag    = "tag"
 )
 
 // parseHook parses a Bitbucket hook from an http.Request request and returns
 // Repo and Build detail. TODO: find a way to support PR hooks
-func parseHook(r *http.Request, baseURL string, prCommands string) (*model.Repo, *model.Build, error) {
+func parseHook(r *http.Request, baseURL string, prCommands string, netrcUsername string, netrcPassword string) (*model.Repo, *model.Build, error) {
 	switch r.Header.Get(hookEvent) {
-		case hookPush:
-			return parsePushHook(r, baseURL)
-		case hookPullRequestOpened:
-			return parsePullRequestHook(r, baseURL, prCommands)
-		case hookPullRequestUpdated:
-			return parsePullRequestHook(r, baseURL, prCommands)
+	case hookPush:
+		return parsePushHook(r, baseURL, netrcUsername, netrcPassword)
+	case hookPullRequestOpened:
+		return parsePullRequestHook(r, baseURL, prCommands)
+	case hookPullRequestUpdated:
+		return parsePullRequestHook(r, baseURL, prCommands)
 	}
 	return nil, nil, nil
 }
 
-func parsePushHook(r *http.Request, baseURL string) (*model.Repo, *model.Build, error) {
+func parsePushHook(r *http.Request, baseURL string, netrcUsername string, netrcPassword string) (*model.Repo, *model.Build, error) {
 	hook := new(internal.PushHook)
 	if err := json.NewDecoder(r.Body).Decode(hook); err != nil {
 		return nil, nil, err
 	}
 	// Ignore DELETE tag/branch event
-	if (hook.Changes[0].Type == "DELETE") {
+	if hook.Changes[0].Type == "DELETE" {
 		return nil, nil, nil
 	}
-	build := convertPushHook(hook, baseURL)
+	build := convertPushHook(hook, baseURL, netrcUsername, netrcPassword)
 	repo := &model.Repo{
 		Name:     hook.Repository.Slug,
 		Owner:    hook.Repository.Project.Key,
@@ -73,15 +74,15 @@ func parsePullRequestHook(r *http.Request, baseURL string, prCommands string) (*
 	if err := json.NewDecoder(r.Body).Decode(hook); err != nil {
 		return nil, nil, err
 	}
-	if (hook.EventKey == "pr:comment:added") {
+	if hook.EventKey == "pr:comment:added" {
 		prCommandList := strings.Split(prCommands, ",")
 		validPRCommand := false
 		for _, command := range prCommandList {
-			if (strings.HasPrefix(strings.ToLower(hook.Comment.Text), command)) {
+			if strings.HasPrefix(strings.ToLower(hook.Comment.Text), command) {
 				validPRCommand = true
 			}
 		}
-		if (! validPRCommand) {
+		if !validPRCommand {
 			return nil, nil, nil
 		}
 	}

@@ -49,7 +49,7 @@ type Opts struct {
 	ConsumerRSA       string // Oauth1 consumer key file.
 	ConsumerRSAString string
 	PRCommands        string // Stash Pull Request Commands, coma sperated for multiple
-	SkipVerify        bool // Skip ssl verification.
+	SkipVerify        bool   // Skip ssl verification.
 }
 
 type Config struct {
@@ -234,7 +234,7 @@ func (c *Config) Deactivate(u *model.User, r *model.Repo, link string) error {
 }
 
 func (c *Config) Hook(r *http.Request) (*model.Repo, *model.Build, error) {
-	return parseHook(r, c.URL, c.PRCommands)
+	return parseHook(r, c.URL, c.PRCommands, c.Username, c.Password)
 }
 
 func CreateConsumer(URL string, ConsumerKey string, PrivateKey *rsa.PrivateKey) *oauth.Consumer {
