@@ -194,7 +194,7 @@ func PostHook(c *gin.Context) {
 	// verify the branches can be built vs skipped
 	branches, err := yaml.ParseString(conf.Data)
 	if err == nil {
-		if !branches.Branches.Match(build.Branch) && build.Event != model.EventTag && build.Event != model.EventDeploy {
+		if !branches.Branches.Match(build.Branch) && build.Event != model.EventDeploy {
 			c.String(200, "Branch does not match restrictions defined in yaml")
 			return
 		}
